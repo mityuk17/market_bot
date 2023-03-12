@@ -11,15 +11,17 @@ def start_db():
     price INTEGER,
     picture1_id TEXT,
     picture2_id TEXT,
-    active INTEGER);''')
+    active INTEGER,
+    target TEXT);''')
     c.execute('''CREATE TABLE IF NOT EXISTS categories (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    name TEXT);''')
+    name TEXT,
+    previous_category INTEGER);''')
     c.execute('''SELECT * FROM categories;''')
     if not c.fetchall():
-        create_category('Автозапчасти')
-        create_category('Спецтехника')
-        create_category('Аренда и найм')
+        create_category('Автозапчасти ⚙️', 0)
+        create_category('Спецтехника 🚜️', 0)
+        create_category('Аренда и найм 📆', 0)
     c.execute('''CREATE TABLE IF NOT EXISTS users (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     username TEXT,
@@ -27,20 +29,32 @@ def start_db():
     conn.commit()
     conn.close()
 
-def get_categories():
+def get_main_categories():
     conn = sqlite3.connect('data.db')
     c = conn.cursor()
-    c.execute(f'''SELECT * FROM categories''')
-    return [{'id': i[0], 'name': i[1]} for i in c.fetchall()]
+    c.execute(f'''SELECT * FROM categories WHERE previous_category = 0;''')
+    return [{'id': i[0], 'name': i[1], 'previous_category': i[2]} for i in c.fetchall()]
 
 
-def create_category(category_name: str):
+def is_subcategories(category_id : int):
+    conn = sqlite3.connect('data.db')
+    c = conn.cursor()
+    c.execute(f'''SELECT * FROM categories WHERE previous_category = {category_id};''')
+    if c.fetchall():
+        return True
+
+def get_subcategories(category_id: int):
+    conn = sqlite3.connect('data.db')
+    c = conn.cursor()
+    c.execute(f'''SELECT * FROM categories WHERE previous_category = {category_id};''')
+    return [{'id': i[0], 'name': i[1], 'previous_category': i[2]} for i in c.fetchall()]
+def create_category(category_name: str, previous_category: int):
     conn = sqlite3.connect('data.db')
     c = conn.cursor()
     c.execute(f'''SELECT * FROM categories WHERE name = '{category_name}';''')
     if c.fetchall():
         return False
-    c.execute(f'''INSERT INTO categories(name) VALUES ('{category_name}');''')
+    c.execute(f'''INSERT INTO categories(name, previous_category) VALUES ('{category_name}', {previous_category});''')
     conn.commit()
     conn.close()
     return True
@@ -49,7 +63,7 @@ def create_category(category_name: str):
 def remove_category(category_id: int):
     conn = sqlite3.connect('data.db')
     c = conn.cursor()
-    c.execute(f'''DELETE FROM categories WHERE id = {category_id};''')
+    c.execute(f'''DELETE FROM categories WHERE id = {category_id} or previous_category = {category_id};''')
     conn.commit()
     conn.close()
     return None
@@ -59,9 +73,9 @@ def create_item(item_data: dict):
     print(item_data)
     conn = sqlite3.connect('data.db')
     c = conn.cursor()
-    c.execute(f'''INSERT INTO items(creator_id, category_id, name, description, price, picture1_id, picture2_id, active)
+    c.execute(f'''INSERT INTO items(creator_id, category_id, name, description, price, picture1_id, picture2_id, active, target)
     VALUES ( {item_data['creator_id']}, {item_data['category_id']}, '{item_data['title']}', 
-    '{item_data['description']}', {item_data['price']}, '{item_data['picture1']}', '{item_data['picture2']}', 1);''')
+    '{item_data['description']}', {item_data['price']}, '{item_data['picture1']}', '{item_data['picture2']}', 1, '{item_data['target']}');''')
     conn.commit()
     conn.close()
     return None
@@ -83,10 +97,10 @@ def add_user(user_id: int, username: str, phone_number: str):
     conn.close()
 
 
-def get_items_by_category(category_id: int):
+def get_items_by_category(category_id: int, target: str):
     conn = sqlite3.connect('data.db')
     c = conn.cursor()
-    c.execute(f'''SELECT * FROM items WHERE category_id = {category_id} AND active = 1;''')
+    c.execute(f'''SELECT * FROM items WHERE category_id = {category_id} AND active = 1 AND target = '{target}';''')
     data = c.fetchall()
     if data:
         return [{'id': i[0], 'creator_id': i[1], 'category_id': i[2], 'name': i[3], 'description': i[4], 'price': i[5],
@@ -111,7 +125,7 @@ def get_item_by_id(item_id: int):
     data = c.fetchall()
     if data:
         return [{'id': i[0], 'creator_id': i[1], 'category_id': i[2], 'name': i[3], 'description': i[4], 'price': i[5],
-                'picture1_id': i[6], 'picture2_id': i[7], 'active': i[8]} for i in data][0]
+                'picture1_id': i[6], 'picture2_id': i[7], 'active': i[8], 'target': i[9]} for i in data][0]
     return None
 
 
@@ -126,7 +140,13 @@ def get_category_by_id(category_id: int):
     conn = sqlite3.connect('data.db')
     c = conn.cursor()
     c.execute(f'''SELECT * FROM categories WHERE id = {category_id};''')
-    return c.fetchall()[0][1]
+    data = c.fetchall()[0]
+    response = {
+        'id': data[0],
+        'name': data[1],
+        'previous_category': data[2]
+    }
+    return response
 
 
 def remove_item_by_id(item_id):

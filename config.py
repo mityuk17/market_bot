@@ -1,9 +1,10 @@
+#telegram_token = '6287798525:AAHGmutQYOHuhJlNsY07byvdSC4TxQwLb64'
 telegram_token = '5972244696:AAFnydqHSJHVWcAMkij1eaE7Jqoe1d-11x0'
-admin_ids = [547380383]
+admin_ids = [547380383, 365627479, 413512781]
 max_title_length = 255
 max_items_per_account = 10
 max_description_length = 3000
-group_url = 't.me'
+group_url = 'https://t.me/Russian_excavators'
 hello_message = 'Главное меню'
 search_message = '🔎 Выберите категорию для поиска:'
 send_title = 'Пришлите название:'
