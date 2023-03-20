@@ -9,8 +9,7 @@ def start_db():
     name TEXT,
     description TEXT, 
     price INTEGER,
-    picture1_id TEXT,
-    picture2_id TEXT,
+    pictures_id TEXT,
     active INTEGER,
     target TEXT);''')
     c.execute('''CREATE TABLE IF NOT EXISTS categories (
@@ -73,9 +72,9 @@ def create_item(item_data: dict):
     print(item_data)
     conn = sqlite3.connect('data.db')
     c = conn.cursor()
-    c.execute(f'''INSERT INTO items(creator_id, category_id, name, description, price, picture1_id, picture2_id, active, target)
+    c.execute(f'''INSERT INTO items(creator_id, category_id, name, description, price, pictures, active, target)
     VALUES ( {item_data['creator_id']}, {item_data['category_id']}, '{item_data['title']}', 
-    '{item_data['description']}', {item_data['price']}, '{item_data['picture1']}', '{item_data['picture2']}', 1, '{item_data['target']}');''')
+    '{item_data['description']}', {item_data['price']}, '{item_data['pictures']}', 1, '{item_data['target']}');''')
     conn.commit()
     conn.close()
     return None
@@ -104,7 +103,7 @@ def get_items_by_category(category_id: int, target: str):
     data = c.fetchall()
     if data:
         return [{'id': i[0], 'creator_id': i[1], 'category_id': i[2], 'name': i[3], 'description': i[4], 'price': i[5],
-                'picture1_id': i[6], 'picture2_id': i[7], 'active': i[8]} for i in data]
+                'pictures_id': i[6], 'active': i[7]} for i in data]
     return []
 
 
@@ -115,7 +114,7 @@ def get_items_by_creator(creator_id: int):
     data = c.fetchall()
     if data:
         return [{'id': i[0], 'creator_id': i[1], 'category_id': i[2], 'name': i[3], 'description': i[4], 'price': i[5],
-                'picture1_id': i[6], 'picture2_id': i[7], 'active': i[8]} for i in data]
+                'pictures_id': i[6], 'active': i[7]} for i in data]
     return []
 
 def get_item_by_id(item_id: int):
@@ -125,7 +124,7 @@ def get_item_by_id(item_id: int):
     data = c.fetchall()
     if data:
         return [{'id': i[0], 'creator_id': i[1], 'category_id': i[2], 'name': i[3], 'description': i[4], 'price': i[5],
-                'picture1_id': i[6], 'picture2_id': i[7], 'active': i[8], 'target': i[9]} for i in data][0]
+                'pictures_id': i[6], 'active': i[7]} for i in data]
     return None
 
 
@@ -184,3 +183,17 @@ def get_users():
         items_amount = get_amount_items_per_user(user_id)
         data.append([username, user_id, phone_number, items_amount])
     return data
+
+
+def change_phone_number(user_id, phone_number):
+    conn = sqlite3.connect('data.db')
+    c = conn.cursor()
+    c.execute(f'''UPDATE users SET phone_number = '{phone_number}' WHERE id ={user_id};''')
+    conn.commit()
+
+
+def change_price(item_id, price):
+    conn = sqlite3.connect('data.db')
+    c = conn.cursor()
+    c.execute(f'''UPDATE items SET price = {price} WHERE id = {item_id};''')
+    conn.commit()

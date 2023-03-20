@@ -24,7 +24,16 @@ class States(StatesGroup):
     get_new_category_name = State()
     get_message_for_send = State()
     get_subcategory_name = State()
+    get_new_price = State()
 
+
+
+@dp.callback_query_handler(lambda query: query.data == 'change_phone_number')
+async def change_phone_number(callback_query: types.CallbackQuery):
+    await States.get_phone_number.set()
+    kb = types.InlineKeyboardMarkup()
+    kb.add(types.InlineKeyboardButton(text=config.main_menu, callback_data='menu'))
+    await callback_query.message.edit_text(config.get_new_phone_number, reply_markup=kb)
 @dp.message_handler(commands=['admin'], state= '*')
 async def admin(message: types.Message, state: FSMContext):
     await state.finish()
@@ -57,7 +66,7 @@ async def edit_categories(callback_query: types.CallbackQuery, state: FSMContext
     kb = types.InlineKeyboardMarkup()
     kb.add(types.InlineKeyboardButton(text='Добавить категорию', callback_data='add_category'))
     kb.add(types.InlineKeyboardButton(text='Удалить категорию', callback_data='delete_category'))
-    kb.add(types.InlineKeyboardButton(text='Главное меню  🔙', callback_data='admin_menu'))
+    kb.add(types.InlineKeyboardButton(text=config.main_menu, callback_data='admin_menu'))
     await callback_query.message.edit_text('Выберите действие', reply_markup=kb)
 
 
@@ -65,7 +74,7 @@ async def edit_categories(callback_query: types.CallbackQuery, state: FSMContext
 async def add_category(callback_query: types.CallbackQuery, state: FSMContext):
     await state.finish()
     kb = types.InlineKeyboardMarkup()
-    kb.add(types.InlineKeyboardButton(text='Главное меню  🔙', callback_data='admin_menu'))
+    kb.add(types.InlineKeyboardButton(text=config.main_menu, callback_data='admin_menu'))
     await callback_query.message.edit_text('Пришлите название для новой категории', reply_markup=kb)
     await States.get_new_category_name.set()
 
@@ -75,7 +84,7 @@ async def new_category(message: types.Message, state: FSMContext):
     await state.finish()
     res = db.create_category(message.text, 0)
     kb = types.InlineKeyboardMarkup()
-    kb.add(types.InlineKeyboardButton(text='Главное меню  🔙', callback_data='admin_menu'))
+    kb.add(types.InlineKeyboardButton(text=config.main_menu, callback_data='admin_menu'))
     if res:
         await message.answer('Категория успешно создана.', reply_markup=kb)
         return
@@ -89,7 +98,7 @@ async def delete_category(callback_query: types.CallbackQuery, state: FSMContext
     kb = types.InlineKeyboardMarkup()
     for category in categories:
         kb.add(types.InlineKeyboardButton(text=category.get('name'), callback_data=f'offer_remove_category_{category.get("id")}'))
-    kb.add(types.InlineKeyboardButton(text='Главное меню  🔙', callback_data='admin_menu'))
+    kb.add(types.InlineKeyboardButton(text=config.main_menu, callback_data='admin_menu'))
     await callback_query.message.edit_text('Выберите категорию для удаления', reply_markup=kb)
 
 
@@ -99,8 +108,8 @@ async def remove_category(callback_query: types.CallbackQuery, state: FSMContext
     category_name = db.get_category_name(category_id)
     await state.finish()
     kb = types.InlineKeyboardMarkup()
-    kb.add(types.InlineKeyboardButton(text='ДА ✅', callback_data=f'remove_category_{category_id}'))
-    kb.add(types.InlineKeyboardButton(text='НЕТ ❌', callback_data='cancel_remove_category'))
+    kb.add(types.InlineKeyboardButton(text=config.yes, callback_data=f'remove_category_{category_id}'))
+    kb.add(types.InlineKeyboardButton(text=config.no, callback_data='cancel_remove_category'))
     await callback_query.message.edit_text(f'Вы уверены, что хотите удалить категорию {category_name}?', reply_markup=kb)
 
 
@@ -108,7 +117,7 @@ async def remove_category(callback_query: types.CallbackQuery, state: FSMContext
 async def cancel_remove_category(callback_query: types.CallbackQuery, state: FSMContext):
     await state.finish()
     kb = types.InlineKeyboardMarkup()
-    kb.add(types.InlineKeyboardButton(text='Главное меню  🔙', callback_data='admin_menu'))
+    kb.add(types.InlineKeyboardButton(text=config.main_menu, callback_data='admin_menu'))
     await callback_query.message.edit_text('Удаление категории отменено.', reply_markup=kb)
 
 
@@ -116,7 +125,7 @@ async def cancel_remove_category(callback_query: types.CallbackQuery, state: FSM
 async def confirm_remove_category(callback_query: types.CallbackQuery, state: FSMContext):
     await state.finish()
     kb = types.InlineKeyboardMarkup()
-    kb.add(types.InlineKeyboardButton(text='Главное меню  🔙', callback_data='admin_menu'))
+    kb.add(types.InlineKeyboardButton(text=config.main_menu, callback_data='admin_menu'))
     category_id = int(callback_query.data.split('_')[-1])
     db.remove_category(category_id)
     await callback_query.message.edit_text('Категория успешно удалена.', reply_markup=kb)
@@ -129,7 +138,7 @@ async def edit_subcategories(callback_query: types.CallbackQuery, state: FSMCont
     kb = types.InlineKeyboardMarkup()
     for category in categories:
         kb.add(types.InlineKeyboardButton(text=category.get('name'), callback_data=f'edit_sub_{category.get("id")}'))
-    kb.add(types.InlineKeyboardButton(text='Назад 🔙', callback_data='admin_menu'))
+    kb.add(types.InlineKeyboardButton(text=config.back, callback_data='admin_menu'))
     await callback_query.message.edit_text('Выберите для какой категории изменить подкатегории:', reply_markup=kb)
 
 
@@ -141,7 +150,7 @@ async def edit_subs(callback_query: types.CallbackQuery, state: FSMContext):
     for subcategory in subcategories:
         kb.add(types.InlineKeyboardButton(text=subcategory.get('name'), callback_data=f'offer_remove_subcategory_{subcategory.get("id")}'))
     kb.add(types.InlineKeyboardButton(text='Создать новую подкатегорию', callback_data=f'add_subcategory_{int(callback_query.data.split("_")[-1])}'))
-    kb.add(types.InlineKeyboardButton(text='Назад 🔙', callback_data=f'edit_subcategories'))
+    kb.add(types.InlineKeyboardButton(text=config.back, callback_data=f'edit_subcategories'))
     await callback_query.message.edit_text('Выберите подкатегорию для изменения:', reply_markup=kb)
 
 
@@ -149,8 +158,8 @@ async def edit_subs(callback_query: types.CallbackQuery, state: FSMContext):
 async def go_to_remove(callback_query: types.CallbackQuery):
     category_id = int(callback_query.data.split("_")[-1])
     kb = types.InlineKeyboardMarkup()
-    kb.add(types.InlineKeyboardButton(text='ДА ✅', callback_data = f'remove_subcategory_{category_id}'))
-    kb.add(types.InlineKeyboardButton(text='НЕТ ❌', callback_data=f'edit_sub_{(db.get_category_by_id(category_id)).get("previous_category")}'))
+    kb.add(types.InlineKeyboardButton(text=config.yes, callback_data = f'remove_subcategory_{category_id}'))
+    kb.add(types.InlineKeyboardButton(text=config.no, callback_data=f'edit_sub_{(db.get_category_by_id(category_id)).get("previous_category")}'))
     await callback_query.message.edit_text(f'Вы уверены, что хотите удалить подкатегорию {db.get_category_by_id(category_id).get("name")}?', reply_markup=kb)
 
 
@@ -159,7 +168,7 @@ async def delete_subcategory(callback_query: types.CallbackQuery, state: FSMCont
     await state.finish()
     category_id = int(callback_query.data.split('_')[-1])
     kb = types.InlineKeyboardMarkup()
-    kb.add(types.InlineKeyboardButton(text='Назад  🔙', callback_data=f'edit_sub_{db.get_category_by_id(category_id).get("previous_category")}'))
+    kb.add(types.InlineKeyboardButton(text=config.back, callback_data=f'edit_sub_{db.get_category_by_id(category_id).get("previous_category")}'))
     db.remove_category(category_id)
     await callback_query.message.edit_text('Подкатегория успешно удалена.', reply_markup=kb)
 
@@ -172,7 +181,7 @@ async def start_adding_subcategory(callback_query: types.CallbackQuery, state: F
     async with state.proxy() as data:
         data['category_id'] = category_id
     kb = types.InlineKeyboardMarkup()
-    kb.add(types.InlineKeyboardButton(text='Назад  🔙', callback_data=f'edit_sub_{category_id}'))
+    kb.add(types.InlineKeyboardButton(text=config.back, callback_data=f'edit_sub_{category_id}'))
     await callback_query.message.edit_text('Введите название для новой подкатегории:')
 
 
@@ -183,7 +192,7 @@ async def add_new_subcategory(message: types.Message, state: FSMContext):
     category_name = message.text
     db.create_category(category_name, category_id)
     kb = types.InlineKeyboardMarkup()
-    kb.add(types.InlineKeyboardButton(text='Назад  🔙', callback_data=f'edit_sub_{category_id}'))
+    kb.add(types.InlineKeyboardButton(text=config.back, callback_data=f'edit_sub_{category_id}'))
     await message.answer('Подкатегория успешно создана', reply_markup=kb)
 
 
@@ -199,7 +208,7 @@ async def users_statistic(callback_query: types.CallbackQuery, state: FSMContext
         sh.append(i)
     wb.save('users_statistic.xlsx')
     kb = types.InlineKeyboardMarkup()
-    kb.add(types.InlineKeyboardButton(text='Главное меню  🔙', callback_data='admin_menu'))
+    kb.add(types.InlineKeyboardButton(text=config.main_menu, callback_data='admin_menu'))
     await callback_query.message.answer_document(document=types.InputFile('users_statistic.xlsx'))
     await callback_query.message.answer('Статистика по пользователям загружена.', reply_markup=kb)
     await callback_query.message.delete()
@@ -209,7 +218,7 @@ async def users_statistic(callback_query: types.CallbackQuery, state: FSMContext
 async def send(callback_query: types.CallbackQuery, state: FSMContext):
     await state.finish()
     kb = types.InlineKeyboardMarkup()
-    kb.add(types.InlineKeyboardButton(text='Главное меню  🔙', callback_data='admin_menu'))
+    kb.add(types.InlineKeyboardButton(text=config.main_menu, callback_data='admin_menu'))
     await callback_query.message.edit_text('Пришлите сообщение для рассылки', reply_markup=kb)
     await States.get_message_for_send.set()
 
@@ -220,7 +229,7 @@ async def send_message(message: types.Message, state: FSMContext):
         user_id = user[1]
         await bot.copy_message(chat_id=user_id, from_chat_id=message.chat.id, message_id=message.message_id)
     kb = types.InlineKeyboardMarkup()
-    kb.add(types.InlineKeyboardButton(text='Главное меню  🔙', callback_data='admin_menu'))
+    kb.add(types.InlineKeyboardButton(text=config.main_menu, callback_data='admin_menu'))
     await message.answer('Рассылка успешна отправлена.', reply_markup=kb)
     await state.finish()
 
@@ -232,19 +241,20 @@ async def start(message: types.Message, state: FSMContext):
         await message.answer(config.get_phone_number)
         return await States.get_phone_number.set()
     kb = types.InlineKeyboardMarkup()
-    kb.add(types.InlineKeyboardButton(text='Поиск объявлений  🔍', callback_data='search_items'))
-    kb.add(types.InlineKeyboardButton(text='Разместить объявления ✍️', callback_data='create_item'))
-    kb.add(types.InlineKeyboardButton(text='Посмотреть свои объявления 👀', switch_inline_query_current_chat='myitems'))
-    kb.add(types.InlineKeyboardButton(text='Наше сообщество  💎', url=config.group_url))
+    kb.add(types.InlineKeyboardButton(text=config.search_item, callback_data='search_items'))
+    kb.add(types.InlineKeyboardButton(text=config.create_item, callback_data='create_item'))
+    kb.add(types.InlineKeyboardButton(text=config.look_my_items, switch_inline_query_current_chat='myitems'))
+    kb.add(types.InlineKeyboardButton(text=config.our_group, url=config.group_url))
+    kb.add(types.InlineKeyboardButton(text=config.change_phone_number, callback_data='change_phone_number'))
     await message.answer(config.hello_message, reply_markup=kb)
 
 
 @dp.callback_query_handler(lambda query: query.data == 'cancel', state='*')
 async def cancel_remove(callback_query: types.CallbackQuery, state: FSMContext):
     kb = types.InlineKeyboardMarkup()
-    kb.add(types.InlineKeyboardButton(text='Главное меню  🔙', callback_data='menu'))
+    kb.add(types.InlineKeyboardButton(text=config.main_menu, callback_data='menu'))
     await state.finish()
-    await callback_query.message.edit_text('Удаление объявления отменено', reply_markup=kb)
+    await callback_query.message.edit_text(config.remove_item_cancelled, reply_markup=kb)
 
 
 @dp.callback_query_handler(lambda query: query.data == 'menu', state='*')
@@ -254,10 +264,11 @@ async def main_callback(callback_query: types.CallbackQuery, state: FSMContext):
         await callback_query.message.edit_text(config.get_phone_number)
         return await States.get_phone_number.set()
     kb = types.InlineKeyboardMarkup()
-    kb.add(types.InlineKeyboardButton(text='Поиск объявлений  🔍', callback_data='search_items'))
-    kb.add(types.InlineKeyboardButton(text='Разместить объявления ✍️', callback_data='create_item'))
-    kb.add(types.InlineKeyboardButton(text='Посмотреть свои объявления 👀', switch_inline_query_current_chat='myitems'))
-    kb.add(types.InlineKeyboardButton(text='Наше сообщество  💎', url=config.group_url))
+    kb.add(types.InlineKeyboardButton(text=config.search_item, callback_data='search_items'))
+    kb.add(types.InlineKeyboardButton(text=config.create_item, callback_data='create_item'))
+    kb.add(types.InlineKeyboardButton(text=config.look_my_items, switch_inline_query_current_chat='myitems'))
+    kb.add(types.InlineKeyboardButton(text=config.our_group, url=config.group_url))
+    kb.add(types.InlineKeyboardButton(text=config.change_phone_number, callback_data='change_phone_number'))
     await callback_query.message.edit_text(config.hello_message, reply_markup=kb)
 
 
@@ -266,10 +277,10 @@ async def show_item(message: types.Message, state: FSMContext):
     item_id = int(message.text.split(' ')[1])
     item = db.get_item_by_id(item_id)
     if not item:
-        await message.answer('Объявление не найдено, скорее всего оно было удалено.')
+        await message.answer(config.item_not_found)
         return
-    await message.answer_photo(photo=item.get('picture1_id'))
-    await message.answer_photo(photo=item.get('picture2_id'))
+    for picture in item.get('pictures_id'):
+        await bot.send_photo(picture)
     phone_number = db.get_phone_number(message.from_user.id)
     text= f'''
 {item.get('name')}
@@ -281,17 +292,42 @@ async def show_item(message: types.Message, state: FSMContext):
     category_name = category.get('name')
     kb = types.InlineKeyboardMarkup()
     if item.get('target') == 'sell':
-        kb.add(types.InlineKeyboardButton(text=f'{category_name} Предложение 📆️', switch_inline_query_current_chat=f'sell_{item.get("category_id")}'))
+        emodzi = category_name.split()[-1]
+        kb.add(types.InlineKeyboardButton(text=f'Предложение {emodzi}', switch_inline_query_current_chat=f'sell_{item.get("category_id")}'))
     elif item.get('target') == 'buy':
-        kb.add(types.InlineKeyboardButton(text=f'{category_name} Спрос 💸', switch_inline_query_current_chat=f'buy_{item.get("category_id")}', ))
-    kb.add(types.InlineKeyboardButton(text='Другие категории  👉', callback_data='search_items'))
+        kb.add(types.InlineKeyboardButton(text=f'{category_name} {config.demand}', switch_inline_query_current_chat=f'buy_{item.get("category_id")}', ))
+    kb.add(types.InlineKeyboardButton(text=config.other_categories, callback_data='search_items'))
     if message.from_user.id == item.get('creator_id') or message.from_user.id in config.admin_ids:
-        kb.add(types.InlineKeyboardButton(text='Удалить объявление 🌪', callback_data=f'offer_delete_item_{item_id}'))
-    kb.add(types.InlineKeyboardButton('Главное меню  🔙', callback_data='menu'))
+        kb.add(types.InlineKeyboardButton(text=config.remove_item, callback_data=f'offer_delete_item_{item_id}'))
+    if message.from_user.id == item.get('creator_id'):
+        kb.add(types.InlineKeyboardButton(text=config.change_price, callback_data=f'change_price_{item_id}'))
+    kb.add(types.InlineKeyboardButton(config.main_menu, callback_data='menu'))
     await message.answer(text)
     text = config.after_item.replace('category_name', category_name)
     await message.answer(text, reply_markup=kb)
 
+
+@dp.callback_query_handler(lambda query: query.data.startswith('change_price_'))
+async def change_price(callback_query: types.CallbackQuery, state: FSMContext):
+    await States.get_new_price.set()
+    async with state.proxy() as data:
+        data['item_id'] = int(callback_query.data.split('_')[-1])
+    kb = types.InlineKeyboardMarkup()
+    kb.add(types.InlineKeyboardButton(config.main_menu, callback_data='menu'))
+    await callback_query.message.edit_text(config.get_new_price, reply_markup=kb)
+
+
+@dp.message_handler(state=States.get_new_price)
+async def get_price(message: types.Message, state: FSMContext):
+    price = message.text
+    if not price.isdigit():
+        await message.answer('Неверный формат.')
+        return
+    async with state.proxy() as data:
+        item_id = data['item_id']
+    db.change_price(item_id, price)
+    await state.finish()
+    await message.answer('Цена изменена.')
 
 @dp.callback_query_handler(lambda query: query.data.startswith('offer_delete_item_'), state='*')
 async def delete_item(callback_query: types.CallbackQuery, state: FSMContext):
@@ -300,7 +336,7 @@ async def delete_item(callback_query: types.CallbackQuery, state: FSMContext):
     item = db.get_item_by_id(item_id)
     text = f'''Вы уверены, что хотите удалить объявление {item.get('name')}?'''
     kb = types.InlineKeyboardMarkup()
-    kb.add(types.InlineKeyboardButton(text='ДА ✅', callback_data=f'delete_item_{item_id}'))
+    kb.add(types.InlineKeyboardButton(text=config.yes, callback_data=f'delete_item_{item_id}'))
     kb.add(types.InlineKeyboardButton(text='НЕТ ❌', callback_data='cancel'))
     await callback_query.message.edit_text(text, reply_markup=kb)
 
@@ -311,19 +347,24 @@ async def delete_item(callback_query: types.CallbackQuery, state: FSMContext):
     item_id = int(callback_query.data.split('_')[-1])
     db.remove_item_by_id(item_id)
     kb = types.InlineKeyboardMarkup()
-    kb.add(types.InlineKeyboardButton(text='Главное меню  🔙', callback_data='menu'))
-    await callback_query.message.edit_text('Объявление удалено', reply_markup=kb)
+    kb.add(types.InlineKeyboardButton(text=config.main_menu, callback_data='menu'))
+    await callback_query.message.edit_text(config.item_removed_success, reply_markup=kb)
 
 
 @dp.message_handler(state=States.get_phone_number)
 async def get_phone_number(message: types.Message, state: FSMContext):
     await state.finish()
-    db.add_user(message.from_user.id, message.from_user.username, message.text)
+    if not db.check_user(message.from_user.id):
+        db.add_user(message.from_user.id, message.from_user.username, message.text)
+    else:
+        db.change_phone_number(message.from_user.id, message.text)
+        await message.answer('Номер телефона успешно изменен.')
     kb = types.InlineKeyboardMarkup()
-    kb.add(types.InlineKeyboardButton(text='Поиск объявлений  🔍', callback_data='search_items'))
-    kb.add(types.InlineKeyboardButton(text='Разместить объявления ✍️', callback_data='create_item'))
-    kb.add(types.InlineKeyboardButton(text='Посмотреть свои объявления 👀', switch_inline_query_current_chat='myitems'))
-    kb.add(types.InlineKeyboardButton(text='Наше сообщество  💎', url=config.group_url))
+    kb.add(types.InlineKeyboardButton(text=config.search_item, callback_data='search_items'))
+    kb.add(types.InlineKeyboardButton(text=config.create_item, callback_data='create_item'))
+    kb.add(types.InlineKeyboardButton(text=config.look_my_items, switch_inline_query_current_chat='myitems'))
+    kb.add(types.InlineKeyboardButton(text=config.our_group, url=config.group_url))
+    kb.add(types.InlineKeyboardButton(text=config.change_phone_number, callback_data='change_phone_number'))
     await message.answer(config.hello_message, reply_markup=kb)
 
 
@@ -340,7 +381,7 @@ async def search_items(callback_query: types.CallbackQuery):
     for category in categories:
         kb.add(types.InlineKeyboardButton(text=category.get('name'),
                                           callback_data=f'category_{category.get("id")}'))
-    kb.add(types.InlineKeyboardButton(text='Главное меню  🔙', callback_data='menu'))
+    kb.add(types.InlineKeyboardButton(text=config.main_menu, callback_data='menu'))
     await callback_query.message.edit_text(config.search_message, reply_markup=kb)
 
 
@@ -354,12 +395,14 @@ async def choose_category(callback_query: types.CallbackQuery, state: FSMContext
         for subcategory in subcategories:
             kb.add(types.InlineKeyboardButton(text=subcategory.get('name'),
                                               callback_data=f'category_{subcategory.get("id")}'))
-        kb.add(types.InlineKeyboardButton(text='Назад 🔙', callback_data='search_items'))
-        await callback_query.message.edit_text('Выберите подкатегорию:', reply_markup=kb)
+        kb.add(types.InlineKeyboardButton(text=config.back, callback_data='search_items'))
+        await callback_query.message.edit_text(config.choose_subcategory, reply_markup=kb)
     else:
-        kb.add(types.InlineKeyboardButton(text='Спрос 💸', switch_inline_query_current_chat=f'buy_{category_id}'))
-        kb.add(types.InlineKeyboardButton(text='Предложение 📆️', switch_inline_query_current_chat=f'sell_{category_id}'))
-        kb.add(types.InlineKeyboardButton(text='Назад 🔙', callback_data='search_items'))
+        kb.add(types.InlineKeyboardButton(text=config.demand, switch_inline_query_current_chat=f'buy_{category_id}'))
+        category_name = db.get_category_by_id(category_id).get('name')
+        emodzi = category_name.split()[-1]
+        kb.add(types.InlineKeyboardButton(text=f'Предложение {emodzi}', switch_inline_query_current_chat=f'sell_{category_id}'))
+        kb.add(types.InlineKeyboardButton(text=config.back, callback_data='search_items'))
         await callback_query.message.edit_text('Выберите действие:', reply_markup=kb)
 @dp.inline_handler()
 async def look_category(inline_query: types.InlineQuery):
@@ -424,10 +467,14 @@ async def choose_category(callback_query: types.CallbackQuery, state: FSMContext
         for subcategory in subcategories:
             kb.add(types.InlineKeyboardButton(text=subcategory.get('name'),
                                               callback_data=f'create_category_{subcategory.get("id")}'))
-        await callback_query.message.edit_text(text='Выберите подкатегорию:', reply_markup=kb)
+        await callback_query.message.edit_text(text=config.choose_subcategory, reply_markup=kb)
     else:
-        kb.add(types.InlineKeyboardButton(text='Спрос 💸', callback_data=f'create_target_buy'))
-        kb.add(types.InlineKeyboardButton(text='Предложение 📆', callback_data=f'create_target_sell'))
+        kb.add(types.InlineKeyboardButton(text=config.demand, callback_data=f'create_target_buy'))
+        category_id = int(callback_query.data.split('_')[-1])
+        category_name = db.get_category_by_id(category_id).get('name')
+        emodzi = category_name.split()[-1]
+        kb.add(types.InlineKeyboardButton(text=f'Предложение {emodzi}', callback_data=f'create_target_sell'))
+        kb.add(types.InlineKeyboardButton(text=config.back, callback_data='menu'))
         await callback_query.message.edit_text(text='Выберите тип объявления:', reply_markup=kb)
 
 @dp.callback_query_handler(lambda query: query.data.startswith('create_target_'), state='*')
@@ -473,23 +520,22 @@ async def get_price(message: types.Message, state: FSMContext):
 @dp.message_handler(content_types=ContentType.PHOTO, state=States.get_picture)
 async def get_picture(message: types.Message, state: FSMContext):
     async with state.proxy() as data:
-        if data.get('picture1'):
-            data['picture2'] = message.photo[-1].file_id
+        if len(data.get('pictures')) == config.pictures_amount:
+            data['pictures'] = data['pictures'] + f' {message.photo[-1].file_id}'
             item_data = {'creator_id': message.from_user.id,
                          'category_id': data.get('category_id'),
                          'title': data.get('title'),
                          'description': data.get('description'),
                          'price': data.get('price'),
-                         'picture1': data.get('picture1'),
-                         'picture2': data.get('picture2'),
+                         'pictures' : data.get('pictures'),
                          'target': data.get('target')}
             db.create_item(item_data)
             kb = types.InlineKeyboardMarkup()
-            kb.add(types.InlineKeyboardButton(text='Главное меню  🔙', callback_data='menu'))
+            kb.add(types.InlineKeyboardButton(text=config.main_menu, callback_data='menu'))
             await message.answer(config.item_created, reply_markup=kb)
             await state.finish()
         else:
-            data['picture1'] = message.photo[-1].file_id
+            data['pictures'] = data['pictures'] + f' {message.photo[-1].file_id}'
             await message.answer(config.send_picture2)
 
 
