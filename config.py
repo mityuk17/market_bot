@@ -6,7 +6,6 @@ max_items_per_account = 10
 max_description_length = 3000
 pictures_amount = 2
 
-
 group_url = 'https://t.me/Russian_excavators'
 
 hello_message = 'Главное меню'
@@ -76,3 +75,15 @@ get_new_price = 'Пришлите новую цену:'
 item_removed_success = 'Объявление удалено'
 
 choose_subcategory = 'Выберите подкатегорию:'
+
+change_item = 'Изменить объявление'
+
+get_new_title = 'Пришлите новое название для объявления'
+
+get_new_description = 'Пришлите ново описание для объявления'
+
+get_new_picture = 'Пришлите новую фотографию'
+
+support = 'Тех. поддержка 🛠'
+
+support_url = 'https://t.me/technicalsupport97'

@@ -1,4 +1,9 @@
+import asyncio
 import sqlite3
+
+import db
+
+
 def start_db():
     conn = sqlite3.connect( 'data.db')
     c = conn.cursor()
@@ -25,24 +30,41 @@ def start_db():
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     username TEXT,
     phone_number TEXT);''')
+    c.execute('''CREATE TABLE IF NOT EXISTS params(
+    param_name TEXT UNIQUE,
+    param_value TEXT);''')
+    c.execute('''SELECT * FROM params;''')
+    if not c.fetchall():
+        create_param('amount_pictures', '2')
     conn.commit()
     conn.close()
 
-def get_main_categories():
+
+def create_param(param_name, param_value):
+    conn = sqlite3.connect('data.db')
+    c = conn.cursor()
+    c.execute(f'''INSERT INTO params (param_name, param_value) VALUES ('{param_name}', '{param_value}');''')
+    conn.commit()
+async def get_param_value(param_name):
+    conn = sqlite3.connect('data.db')
+    c = conn.cursor()
+    c.execute(f'''SELECT * FROM params WHERE param_name = '{param_name}';''')
+    return c.fetchall()[0][1]
+async def get_main_categories():
     conn = sqlite3.connect('data.db')
     c = conn.cursor()
     c.execute(f'''SELECT * FROM categories WHERE previous_category = 0;''')
     return [{'id': i[0], 'name': i[1], 'previous_category': i[2]} for i in c.fetchall()]
 
 
-def is_subcategories(category_id : int):
+async def is_subcategories(category_id : int):
     conn = sqlite3.connect('data.db')
     c = conn.cursor()
     c.execute(f'''SELECT * FROM categories WHERE previous_category = {category_id};''')
     if c.fetchall():
         return True
 
-def get_subcategories(category_id: int):
+async def get_subcategories(category_id: int):
     conn = sqlite3.connect('data.db')
     c = conn.cursor()
     c.execute(f'''SELECT * FROM categories WHERE previous_category = {category_id};''')
@@ -59,7 +81,7 @@ def create_category(category_name: str, previous_category: int):
     return True
 
 
-def remove_category(category_id: int):
+async def remove_category(category_id: int):
     conn = sqlite3.connect('data.db')
     c = conn.cursor()
     c.execute(f'''DELETE FROM categories WHERE id = {category_id} or previous_category = {category_id};''')
@@ -68,11 +90,11 @@ def remove_category(category_id: int):
     return None
 
 
-def create_item(item_data: dict):
+async def create_item(item_data: dict):
     print(item_data)
     conn = sqlite3.connect('data.db')
     c = conn.cursor()
-    c.execute(f'''INSERT INTO items(creator_id, category_id, name, description, price, pictures, active, target)
+    c.execute(f'''INSERT INTO items(creator_id, category_id, name, description, price, pictures_id, active, target)
     VALUES ( {item_data['creator_id']}, {item_data['category_id']}, '{item_data['title']}', 
     '{item_data['description']}', {item_data['price']}, '{item_data['pictures']}', 1, '{item_data['target']}');''')
     conn.commit()
@@ -80,7 +102,7 @@ def create_item(item_data: dict):
     return None
 
 
-def check_user(user_id: int):
+async def check_user(user_id: int):
     conn = sqlite3.connect('data.db')
     c = conn.cursor()
     c.execute(f'''SELECT * FROM users WHERE id ={user_id};''')
@@ -88,7 +110,7 @@ def check_user(user_id: int):
         return True
     return None
 
-def add_user(user_id: int, username: str, phone_number: str):
+async def add_user(user_id: int, username: str, phone_number: str):
     conn = sqlite3.connect('data.db')
     c = conn.cursor()
     c.execute(f'''INSERT INTO users VALUES ({user_id}, '{username}', '{phone_number}');''')
@@ -96,7 +118,7 @@ def add_user(user_id: int, username: str, phone_number: str):
     conn.close()
 
 
-def get_items_by_category(category_id: int, target: str):
+async def get_items_by_category(category_id: int, target: str):
     conn = sqlite3.connect('data.db')
     c = conn.cursor()
     c.execute(f'''SELECT * FROM items WHERE category_id = {category_id} AND active = 1 AND target = '{target}';''')
@@ -107,7 +129,7 @@ def get_items_by_category(category_id: int, target: str):
     return []
 
 
-def get_items_by_creator(creator_id: int):
+async def get_items_by_creator(creator_id: int):
     conn = sqlite3.connect('data.db')
     c = conn.cursor()
     c.execute(f'''SELECT * FROM items WHERE creator_id = {creator_id} AND active = 1;''')
@@ -117,25 +139,25 @@ def get_items_by_creator(creator_id: int):
                 'pictures_id': i[6], 'active': i[7]} for i in data]
     return []
 
-def get_item_by_id(item_id: int):
+async def get_item_by_id(item_id: int):
     conn = sqlite3.connect('data.db')
     c = conn.cursor()
     c.execute(f'''SELECT * FROM items WHERE id = {item_id} AND active = 1;''')
-    data = c.fetchall()
+    data = c.fetchall()[0]
     if data:
-        return [{'id': i[0], 'creator_id': i[1], 'category_id': i[2], 'name': i[3], 'description': i[4], 'price': i[5],
-                'pictures_id': i[6], 'active': i[7]} for i in data]
+        return {'id': data[0], 'creator_id': data[1], 'category_id': data[2], 'name': data[3], 'description': data[4], 'price': data[5],
+                'pictures_id': data[6], 'active': data[7], 'target': data[8]}
     return None
 
 
-def get_phone_number(user_id: int):
+async def get_phone_number(user_id: int):
     conn = sqlite3.connect('data.db')
     c = conn.cursor()
     c.execute(f'''SELECT phone_number FROM users WHERE id = {user_id};''')
     return c.fetchall()[0][0]
 
 
-def get_category_by_id(category_id: int):
+async def get_category_by_id(category_id: int):
     conn = sqlite3.connect('data.db')
     c = conn.cursor()
     c.execute(f'''SELECT * FROM categories WHERE id = {category_id};''')
@@ -148,7 +170,7 @@ def get_category_by_id(category_id: int):
     return response
 
 
-def remove_item_by_id(item_id):
+async def remove_item_by_id(item_id):
     conn = sqlite3.connect('data.db')
     c = conn.cursor()
     c.execute(f'''UPDATE items SET active = 0 WHERE id = {item_id};''')
@@ -157,21 +179,21 @@ def remove_item_by_id(item_id):
     return None
 
 
-def get_category_name(category_id: int):
+async def get_category_name(category_id: int):
     conn = sqlite3.connect('data.db')
     c = conn.cursor()
     c.execute(f'''SELECT name FROM categories WHERE id = {category_id};''')
     return c.fetchall()[0][0]
 
 
-def get_amount_items_per_user(user_id: int):
+async def get_amount_items_per_user(user_id: int):
     conn = sqlite3.connect('data.db')
     c = conn.cursor()
     c.execute(f'''SELECT * FROM items WHERE creator_id = {user_id};''')
     return len(c.fetchall())
 
 
-def get_users():
+async def get_users():
     conn = sqlite3.connect('data.db')
     c = conn.cursor()
     c.execute(f'''SELECT * FROM users;''')
@@ -185,15 +207,63 @@ def get_users():
     return data
 
 
-def change_phone_number(user_id, phone_number):
+
+
+
+async def change_phone_number(user_id, phone_number):
     conn = sqlite3.connect('data.db')
     c = conn.cursor()
     c.execute(f'''UPDATE users SET phone_number = '{phone_number}' WHERE id ={user_id};''')
     conn.commit()
 
 
-def change_price(item_id, price):
+async def change_price(item_id, price):
     conn = sqlite3.connect('data.db')
     c = conn.cursor()
     c.execute(f'''UPDATE items SET price = {price} WHERE id = {item_id};''')
     conn.commit()
+
+
+async def change_param(param_name, param_value):
+    conn = sqlite3.connect('data.db')
+    c = conn.cursor()
+    c.execute(f'''UPDATE params SET param_value = '{param_value}' WHERE param_name = '{param_name}';''')
+
+
+async def change_title(item_id, title):
+    conn = sqlite3.connect('data.db')
+    c = conn.cursor()
+    c.execute(f'''UPDATE items SET name = '{title}' WHERE id = {item_id};''')
+    conn.commit()
+
+
+async def change_description(item_id, description):
+    conn = sqlite3.connect('data.db')
+    c = conn.cursor()
+    c.execute(f'''UPDATE items SET description = '{description}' WHERE id = {item_id};''')
+    conn.commit()
+
+
+async def change_pictures(item_id, pictures):
+    conn = sqlite3.connect('data.db')
+    c = conn.cursor()
+    c.execute(f'''UPDATE items SET pictures_id = '{pictures}' WHERE id = {item_id};''')
+    conn.commit()
+
+
+async def get_items_by_keyword(keyword):
+    conn = sqlite3.connect('data.db')
+    c = conn.cursor()
+    c.execute(f'''SELECT * FROM items WHERE active = 1;''')
+    data = c.fetchall()
+    items = list()
+    descriptions = [[i[0], i[3] + ' ' + i[4]] for i in data]
+    for i in descriptions:
+        item_id = i[0]
+        description = i[1]
+        if keyword.lower() in description.lower():
+            items.append(item_id)
+    for i in range(len(items)):
+        item = await db.get_item_by_id(items[i])
+        items[i] = item
+    return items
