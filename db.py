@@ -1,7 +1,4 @@
-import asyncio
 import sqlite3
-
-import db
 
 
 def start_db():
@@ -27,9 +24,13 @@ def start_db():
         create_category('Спецтехника 🚜️', 0)
         create_category('Аренда и найм 📆', 0)
     c.execute('''CREATE TABLE IF NOT EXISTS users (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    id INTEGER PRIMARY KEY,
     username TEXT,
     phone_number TEXT);''')
+    c.execute('''CREATE TABLE IF NOT EXISTS banned_users(
+    id INTEGER PRIMARY KEY,
+    banned INTEGER
+    );''')
     c.execute('''CREATE TABLE IF NOT EXISTS params(
     param_name TEXT UNIQUE,
     param_value TEXT);''')
@@ -45,11 +46,15 @@ def create_param(param_name, param_value):
     c = conn.cursor()
     c.execute(f'''INSERT INTO params (param_name, param_value) VALUES ('{param_name}', '{param_value}');''')
     conn.commit()
+
+
 async def get_param_value(param_name):
     conn = sqlite3.connect('data.db')
     c = conn.cursor()
     c.execute(f'''SELECT * FROM params WHERE param_name = '{param_name}';''')
     return c.fetchall()[0][1]
+
+
 async def get_main_categories():
     conn = sqlite3.connect('data.db')
     c = conn.cursor()
@@ -64,11 +69,14 @@ async def is_subcategories(category_id : int):
     if c.fetchall():
         return True
 
+
 async def get_subcategories(category_id: int):
     conn = sqlite3.connect('data.db')
     c = conn.cursor()
     c.execute(f'''SELECT * FROM categories WHERE previous_category = {category_id};''')
     return [{'id': i[0], 'name': i[1], 'previous_category': i[2]} for i in c.fetchall()]
+
+
 def create_category(category_name: str, previous_category: int):
     conn = sqlite3.connect('data.db')
     c = conn.cursor()
@@ -189,7 +197,7 @@ async def get_category_name(category_id: int):
 async def get_amount_items_per_user(user_id: int):
     conn = sqlite3.connect('data.db')
     c = conn.cursor()
-    c.execute(f'''SELECT * FROM items WHERE creator_id = {user_id};''')
+    c.execute(f'''SELECT * FROM items WHERE creator_id = {user_id} AND active = 1;''')
     return len(c.fetchall())
 
 
@@ -202,7 +210,7 @@ async def get_users():
         user_id = i[0]
         username = i[1]
         phone_number = i[2]
-        items_amount = get_amount_items_per_user(user_id)
+        items_amount = await get_amount_items_per_user(user_id)
         data.append([username, user_id, phone_number, items_amount])
     return data
 
@@ -264,6 +272,45 @@ async def get_items_by_keyword(keyword):
         if keyword.lower() in description.lower():
             items.append(item_id)
     for i in range(len(items)):
-        item = await db.get_item_by_id(items[i])
+        item = await get_item_by_id(items[i])
         items[i] = item
     return items
+
+
+async def check_banned(user_id):
+    conn = sqlite3.connect('data.db')
+    c = conn.cursor()
+    c.execute(f'''SELECT * FROM banned_users WHERE id = {user_id};''')
+    data = c.fetchall()
+    if data and data[0][1] == 1:
+        return True
+    else:
+        return False
+
+
+async def ban_user(user_id):
+    conn = sqlite3.connect('data.db')
+    c = conn.cursor()
+    if await check_banned(user_id):
+        return
+    c.execute(f'''SELECT * FROM banned_users WHERE id = {user_id};''')
+    if c.fetchall():
+        c.execute(f'''UPDATE banned_users SET banned = 1 WHERE id = {user_id};''')
+    else:
+        c.execute(f'''INSERT INTO banned_users(id, banned) VALUES ({user_id}, 1);''')
+    c.execute(f'''UPDATE items SET active = 0 WHERE creator_id = {user_id};''')
+    conn.commit()
+
+
+async def get_user_by_id(user_id):
+    conn = sqlite3.connect('data.db')
+    c = conn.cursor()
+    c.execute(f'''SELECT * FROM users WHERE id = {user_id};''')
+    return c.fetchall()[0]
+
+
+async def unban_user(user_id):
+    conn = sqlite3.connect('data.db')
+    c = conn.cursor()
+    c.execute(f'''UPDATE banned_users SET banned = 0 WHERE id = {user_id};''')
+    conn.commit()

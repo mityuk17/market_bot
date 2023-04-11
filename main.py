@@ -1,4 +1,6 @@
 import logging
+import re
+
 import openpyxl
 from aiogram import Bot, Dispatcher, executor, types
 from aiogram.contrib.fsm_storage.memory import MemoryStorage
@@ -31,6 +33,11 @@ class States(StatesGroup):
     get_new_pictures = State()
 
 
+def check_links(text):
+    url_extract_pattern = r"[a-zA-Z1-9]+\.[a-zA-z]{2,}"
+    data1 = re.findall(url_extract_pattern, text)
+    return bool(data1)
+
 
 @dp.callback_query_handler(lambda query: query.data == 'change_phone_number')
 async def change_phone_number(callback_query: types.CallbackQuery):
@@ -38,6 +45,8 @@ async def change_phone_number(callback_query: types.CallbackQuery):
     kb = types.InlineKeyboardMarkup()
     kb.add(types.InlineKeyboardButton(text=config.main_menu, callback_data='menu'))
     await callback_query.message.edit_text(config.get_new_phone_number, reply_markup=kb)
+
+
 @dp.message_handler(commands=['admin'], state= '*')
 async def admin(message: types.Message, state: FSMContext):
     await state.finish()
@@ -50,6 +59,22 @@ async def admin(message: types.Message, state: FSMContext):
     kb.add(types.InlineKeyboardButton(text='Провести рассылку по пользователям', callback_data='send'))
     kb.add(types.InlineKeyboardButton(text='Изменить количество фотографий в объявлении', callback_data='change_pictures_amount'))
     await message.answer('Выберите действие', reply_markup=kb)
+
+
+@dp.message_handler(commands=['unban'])
+async def unban(message: types.Message):
+    if message.from_user.id in config.admin_ids:
+        user_id = int(message.text.split()[1])
+    else:
+        return
+    kb = types.InlineKeyboardMarkup()
+    kb.add(types.InlineKeyboardButton(text=config.back, callback_data='admin_menu'))
+    if not await db.check_banned(user_id):
+        await message.answer('Пользователь не заблокирован.',reply_markup=kb)
+    else:
+        await db.unban_user(user_id)
+        await bot.send_message(chat_id=user_id, text=config.unban_message)
+        await message.answer('Пользователь был разблокирован.', reply_markup=kb)
 
 
 @dp.callback_query_handler(lambda query: query.data == 'admin_menu', state='*')
@@ -202,7 +227,6 @@ async def add_new_subcategory(message: types.Message, state: FSMContext):
     await message.answer('Подкатегория успешно создана', reply_markup=kb)
 
 
-
 @dp.callback_query_handler(lambda query: query.data == 'users_statistic', state='*')
 async def users_statistic(callback_query: types.CallbackQuery, state: FSMContext):
     await state.finish()
@@ -246,6 +270,7 @@ async def change_pictures_amount(callback_query: types.CallbackQuery):
     kb.add(types.InlineKeyboardButton(text=config.main_menu, callback_data='admin_menu'))
     await callback_query.message.edit_text('Введите новое значение для количества фотографий в изображений:', reply_markup=kb)
     await States.get_pictures_amount.set()
+
 
 @dp.message_handler(state=States.get_pictures_amount)
 async def get_pictures_amount(message: types.Message, state: FSMContext):
@@ -298,6 +323,8 @@ async def main_callback(callback_query: types.CallbackQuery, state: FSMContext):
     kb.add(types.InlineKeyboardButton(text=config.our_group, url=config.group_url))
     kb.add(types.InlineKeyboardButton(text=config.support, url=config.support_url))
     await callback_query.message.edit_text(config.hello_message, reply_markup=kb)
+
+
 @dp.callback_query_handler(lambda query: query.data.startswith('item_'))
 async def show_item_callback(callback_query: types.CallbackQuery):
     item_id = int(callback_query.data.split('_')[-1])
@@ -336,7 +363,6 @@ async def show_item_callback(callback_query: types.CallbackQuery):
     await callback_query.message.delete()
 
 
-
 @dp.message_handler(commands=['item'], state='*')
 async def show_item(message: types.Message, state: FSMContext):
     item_id = int(message.text.split(' ')[1])
@@ -356,6 +382,7 @@ async def show_item(message: types.Message, state: FSMContext):
     category = await db.get_category_by_id(item.get('category_id'))
     category_name = category.get('name')
     kb = types.InlineKeyboardMarkup()
+    kb.add(types.InlineKeyboardButton(text='Поиск по ключевому слову', switch_inline_query_current_chat=''))
     if item.get('target') == 'sell':
         emodzi = category_name.split()[-1]
         kb.add(types.InlineKeyboardButton(text=f'Предложение {emodzi}', switch_inline_query_current_chat=f'sell_{item.get("category_id")}'))
@@ -366,10 +393,23 @@ async def show_item(message: types.Message, state: FSMContext):
         kb.add(types.InlineKeyboardButton(text=config.remove_item, callback_data=f'offer_delete_item_{item_id}'))
     if message.from_user.id == item.get('creator_id'):
         kb.add(types.InlineKeyboardButton(text=config.change_item, callback_data=f'change_item_{item_id}'))
+    if message.from_user.id in config.admin_ids:
+        kb.add(types.InlineKeyboardButton(text=config.ban_user, callback_data=f'ban_user_{item.get("creator_id")}'))
     kb.add(types.InlineKeyboardButton(config.main_menu, callback_data='menu'))
     await message.answer(text)
     text = config.after_item.replace('category_name', category_name)
     await message.answer(text, reply_markup=kb)
+
+
+@dp.callback_query_handler(lambda query: query.data.startswith('ban_user_'))
+async def ban(callback_query: types.CallbackQuery):
+    user_id = callback_query.data.split('_')[-1]
+    user = await db.get_user_by_id(user_id)
+    username = user[1]
+    await db.ban_user(user_id)
+    kb = types.InlineKeyboardMarkup()
+    kb.add(types.InlineKeyboardButton(config.main_menu, callback_data='menu'))
+    await callback_query.message.edit_text(f'Пользователь {username} ({user_id}) заблокирован.', reply_markup=kb)
 
 
 @dp.callback_query_handler(lambda query: query.data.startswith('change_'))
@@ -415,7 +455,6 @@ async def change_price(callback_query: types.CallbackQuery, state: FSMContext):
         await callback_query.message.edit_text(text=config.get_new_picture, reply_markup=kb)
 
 
-
 @dp.message_handler(state=States.get_new_price)
 async def get_price(message: types.Message, state: FSMContext):
     price = message.text
@@ -437,6 +476,9 @@ async def get_price(message: types.Message, state: FSMContext):
     if len(title) > config.max_title_length:
         await message.answer('Слишком длинное название.')
         return
+    if check_links(title):
+        await message.answer('Название не должно содержать в себе ссылок!')
+        return
     async with state.proxy() as data:
         item_id = data['item_id']
     await db.change_title(item_id, title)
@@ -445,11 +487,15 @@ async def get_price(message: types.Message, state: FSMContext):
     kb.add(types.InlineKeyboardButton(text=config.main_menu, callback_data='admin_menu'))
     await message.answer('Название объявления изменено.', reply_markup=kb)
 
+
 @dp.message_handler(state=States.get_new_description)
 async def get_price(message: types.Message, state: FSMContext):
     description = message.text
     if len(description) > config.max_description_length:
         await message.answer('Слишком длинное описание.')
+        return
+    if check_links(description):
+        await message.answer('Описание не должно содержать в себе ссылок!')
         return
     async with state.proxy() as data:
         item_id = data['item_id']
@@ -458,6 +504,7 @@ async def get_price(message: types.Message, state: FSMContext):
     kb = types.InlineKeyboardMarkup()
     kb.add(types.InlineKeyboardButton(text=config.main_menu, callback_data='admin_menu'))
     await message.answer('Описание объявления изменено.', reply_markup=kb)
+
 
 @dp.message_handler(state=States.get_new_pictures, content_types=ContentType.PHOTO)
 async def get_pictures(message: types.Message, state: FSMContext):
@@ -555,6 +602,8 @@ async def choose_category(callback_query: types.CallbackQuery, state: FSMContext
         kb.add(types.InlineKeyboardButton(text=f'Предложение {emodzi}', switch_inline_query_current_chat=f'sell_{category_id}'))
         kb.add(types.InlineKeyboardButton(text=config.back, callback_data='search_items'))
         await callback_query.message.edit_text('Выберите действие:', reply_markup=kb)
+
+
 @dp.inline_handler()
 async def look_category(inline_query: types.InlineQuery):
     query = inline_query.query
@@ -602,12 +651,17 @@ async def look_category(inline_query: types.InlineQuery):
 async def create_item(callback_query: types.CallbackQuery, state: FSMContext):
     await state.finish()
     kb = types.InlineKeyboardMarkup()
+    if await db.check_banned(callback_query.from_user.id):
+        kb.add(types.InlineKeyboardButton(text='Связаться с администрацией', url = config.unban_group_url))
+        kb.add(types.InlineKeyboardButton(text=config.main_menu, callback_data='menu'))
+        await callback_query.message.edit_text(config.banned, reply_markup=kb)
+        return
     categories = await db.get_main_categories()
     for category in categories:
         kb.add(types.InlineKeyboardButton(text=category.get('name'),
                                           callback_data=f'create_category_{category.get("id")}'))
     await callback_query.answer()
-    await callback_query.message.edit_text(config.search_message, reply_markup=kb)
+    await callback_query.message.edit_text(config.select_category, reply_markup=kb)
 
 
 @dp.callback_query_handler(lambda query: query.data.startswith('create_category_'), state='*')
@@ -631,6 +685,7 @@ async def choose_category(callback_query: types.CallbackQuery, state: FSMContext
         kb.add(types.InlineKeyboardButton(text=config.back, callback_data='menu'))
         await callback_query.message.edit_text(text='Выберите тип объявления:', reply_markup=kb)
 
+
 @dp.callback_query_handler(lambda query: query.data.startswith('create_target_'), state='*')
 async def choose_target(callback_query: types.CallbackQuery, state: FSMContext):
     async with state.proxy() as data:
@@ -638,10 +693,15 @@ async def choose_target(callback_query: types.CallbackQuery, state: FSMContext):
     await callback_query.answer()
     await callback_query.message.edit_text(config.send_title, reply_markup=None)
     await States.get_title.set()
+
+
 @dp.message_handler(state=States.get_title)
 async def get_title(message: types.Message, state: FSMContext):
     if len(message.text) > config.max_title_length:
         await message.answer(config.title_too_long)
+        return
+    if check_links(message.text):
+        await message.answer('Название не должно содержать ссылок!')
         return
     async with state.proxy() as data:
         data['title'] = message.text
@@ -653,6 +713,9 @@ async def get_title(message: types.Message, state: FSMContext):
 async def get_description(message: types.Message, state: FSMContext):
     if len(message.text) > config.max_description_length:
         await message.answer(config.description_too_long)
+        return
+    if check_links(message.text):
+        await message.answer('Описание не должно содержать ссылок!')
         return
     async with state.proxy() as data:
         data['description'] = message.text
