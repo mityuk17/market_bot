@@ -10,7 +10,7 @@ def start_db():
     category_id INTEGER NOT NULL,
     name TEXT,
     description TEXT, 
-    price INTEGER,
+    price TEXT,
     pictures_id TEXT,
     active INTEGER,
     target TEXT);''')
@@ -104,7 +104,7 @@ async def create_item(item_data: dict):
     c = conn.cursor()
     c.execute(f'''INSERT INTO items(creator_id, category_id, name, description, price, pictures_id, active, target)
     VALUES ( {item_data['creator_id']}, {item_data['category_id']}, '{item_data['title']}', 
-    '{item_data['description']}', {item_data['price']}, '{item_data['pictures']}', 1, '{item_data['target']}');''')
+    '{item_data['description']}', '{item_data['price']}', '{item_data['pictures']}', 1, '{item_data['target']}');''')
     conn.commit()
     conn.close()
     return None

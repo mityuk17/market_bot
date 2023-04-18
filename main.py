@@ -375,7 +375,7 @@ async def show_item(message: types.Message, state: FSMContext):
     phone_number = await db.get_phone_number(item.get('creator_id'))
     text = f'''
 {item.get('name')}
-Цена: {item.get('price')}₽
+Цена: {item.get('price')}
 Описание: {item.get('description')}
 Телефон: {phone_number}
 '''
@@ -458,9 +458,6 @@ async def change_price(callback_query: types.CallbackQuery, state: FSMContext):
 @dp.message_handler(state=States.get_new_price)
 async def get_price(message: types.Message, state: FSMContext):
     price = message.text
-    if not price.isdigit():
-        await message.answer('Неверный формат.')
-        return
     async with state.proxy() as data:
         item_id = data['item_id']
     await db.change_price(item_id, price)
@@ -725,11 +722,8 @@ async def get_description(message: types.Message, state: FSMContext):
 
 @dp.message_handler(state=States.get_price)
 async def get_price(message: types.Message, state: FSMContext):
-    if not message.text.isdigit():
-        await message.answer(config.invalid_price)
-        return
     async with state.proxy() as data:
-        data['price'] = int(message.text)
+        data['price'] = message.text
         data['pictures'] = ''
     await States.get_picture.set()
     await message.answer(config.send_picture)
