@@ -228,7 +228,7 @@ async def change_phone_number(user_id, phone_number):
 async def change_price(item_id, price):
     conn = sqlite3.connect('data.db')
     c = conn.cursor()
-    c.execute(f'''UPDATE items SET price = {price} WHERE id = {item_id};''')
+    c.execute(f'''UPDATE items SET price = '{price}' WHERE id = {item_id};''')
     conn.commit()
 
 
