@@ -106,8 +106,10 @@ async def create_item(item_data: dict):
     VALUES ( {item_data['creator_id']}, {item_data['category_id']}, '{item_data['title']}', 
     '{item_data['description']}', '{item_data['price']}', '{item_data['pictures']}', 1, '{item_data['target']}');''')
     conn.commit()
+    c.execute(f'''SELECT * FROM items WHERE creator_id = {item_data['creator_id']} AND category_id = {item_data['category_id']} AND name = '{item_data['title']}' AND description = '{item_data['description']}' AND price = '{item_data['price']}';''')
+    item_id = c.fetchall()[0][0]
     conn.close()
-    return None
+    return item_id
 
 
 async def check_user(user_id: int):

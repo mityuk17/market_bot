@@ -9,6 +9,7 @@ from aiogram.dispatcher.filters.state import State, StatesGroup
 from aiogram.types import ContentType
 import db
 import config
+import yandex_object_storage
 
 API_TOKEN = config.telegram_token
 logging.basicConfig(level=logging.INFO)
@@ -509,6 +510,11 @@ async def get_pictures(message: types.Message, state: FSMContext):
     async with state.proxy() as data:
         data['pictures'] = data['pictures'].strip() + f':::{photo_id}'
         pictures_amount = len(data['pictures'].strip(':::').split(':::'))
+    if pictures_amount == 1:
+        async with state.proxy() as data:
+            item_id = data['item_id']
+        await bot.download_file_by_id(photo_id, f'photos/{item_id}.png')
+        await yandex_object_storage.load_photo(f'photos/{item_id}.png', item_id)
     if pictures_amount == int(await db.get_param_value('amount_pictures')):
         async with state.proxy() as data:
             pictures = data['pictures']
@@ -632,8 +638,9 @@ async def look_category(inline_query: types.InlineQuery):
         answer.append(types.InlineQueryResultArticle(
             id=item.get('id'),
             title=f'{item.get("name")}',
-            description=f'{item.get("price")}₽ | {item.get("description")}',
+            description=f'{item.get("price")} | {item.get("description")}',
             input_message_content=types.InputTextMessageContent(f'/item {item.get("id")}'),
+            thumb_url=f'''{await yandex_object_storage.get_link_by_item_id(item.get('id'))}'''
         ))
     await inline_query.answer(answer, cache_time=60, is_personal=True,
                               switch_pm_text=config.no_items, switch_pm_parameter='None')
@@ -733,7 +740,8 @@ async def get_price(message: types.Message, state: FSMContext):
 async def get_picture(message: types.Message, state: FSMContext):
     async with state.proxy() as data:
         data['pictures'] = data['pictures'] + f':::{message.photo[-1].file_id}'
-        if len(data.get('pictures').strip(':::').split(':::')) == int(await db.get_param_value('amount_pictures')):
+        pictures_amount = len(data.get('pictures').strip(':::').split(':::'))
+        if pictures_amount == int(await db.get_param_value('amount_pictures')):
             item_data = {'creator_id': message.from_user.id,
                          'category_id': data.get('category_id'),
                          'title': data.get('title'),
@@ -741,7 +749,11 @@ async def get_picture(message: types.Message, state: FSMContext):
                          'price': data.get('price'),
                          'pictures' : data.get('pictures'),
                          'target': data.get('target')}
-            await db.create_item(item_data)
+
+            item_id = await db.create_item(item_data)
+            photo_id = data.get('pictures').strip(':::').split(':::')[0]
+            await bot.download_file_by_id(photo_id, f'photos/{item_id}.png')
+            await yandex_object_storage.load_photo(f'photos/{item_id}.png', item_id)
             kb = types.InlineKeyboardMarkup()
             kb.add(types.InlineKeyboardButton(text=config.main_menu, callback_data='menu'))
             await message.answer(config.item_created, reply_markup=kb)
