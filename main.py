@@ -235,8 +235,8 @@ async def users_statistic(callback_query: types.CallbackQuery, state: FSMContext
     wb = openpyxl.Workbook()
     sh = wb.active
     sh.append(['Username', 'id', 'Номер телефона', 'Количество активных объявлений'])
-    for i in data:
-        sh.append(i)
+    for i in range(len(data)):
+        sh.append([i] + data[i])
     wb.save('users_statistic.xlsx')
     kb = types.InlineKeyboardMarkup()
     kb.add(types.InlineKeyboardButton(text=config.main_menu, callback_data='admin_menu'))
@@ -290,8 +290,7 @@ async def get_pictures_amount(message: types.Message, state: FSMContext):
 async def start(message: types.Message, state: FSMContext):
     await state.finish()
     if not await db.check_user(message.chat.id):
-        await message.answer(config.get_phone_number)
-        return await States.get_phone_number.set()
+        await db.add_user(message.from_user.id, message.from_user.username, 'не указан')
     kb = types.InlineKeyboardMarkup()
     kb.add(types.InlineKeyboardButton(text=config.search_item, callback_data='search_items'))
     kb.add(types.InlineKeyboardButton(text=config.create_item, callback_data='create_item'))
@@ -553,11 +552,9 @@ async def delete_item(callback_query: types.CallbackQuery, state: FSMContext):
 @dp.message_handler(state=States.get_phone_number)
 async def get_phone_number(message: types.Message, state: FSMContext):
     await state.finish()
-    if not await db.check_user(message.from_user.id):
-        await db.add_user(message.from_user.id, message.from_user.username, message.text)
-    else:
-        await db.change_phone_number(message.from_user.id, message.text)
-        await message.answer('Номер телефона успешно изменен.')
+
+    await db.change_phone_number(message.from_user.id, message.text)
+    await message.answer('Номер телефона успешно изменен.')
     kb = types.InlineKeyboardMarkup()
     kb.add(types.InlineKeyboardButton(text=config.search_item, callback_data='search_items'))
     kb.add(types.InlineKeyboardButton(text=config.create_item, callback_data='create_item'))
@@ -654,6 +651,12 @@ async def look_category(inline_query: types.InlineQuery):
 @dp.callback_query_handler(lambda query: query.data == 'create_item', state='*')
 async def create_item(callback_query: types.CallbackQuery, state: FSMContext):
     await state.finish()
+    phone_number = await db.get_phone_number(callback_query.from_user.id)
+    if phone_number == 'не указан':
+        kb = types.InlineKeyboardMarkup()
+        await callback_query.message.edit_text(config.set_phone_number)
+        kb.add(types.InlineKeyboardButton(text=config.main_menu, callback_data='menu'))
+        return
     kb = types.InlineKeyboardMarkup()
     if await db.check_banned(callback_query.from_user.id):
         kb.add(types.InlineKeyboardButton(text='Связаться с администрацией', url = config.unban_group_url))
