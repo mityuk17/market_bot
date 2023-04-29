@@ -654,8 +654,8 @@ async def create_item(callback_query: types.CallbackQuery, state: FSMContext):
     phone_number = await db.get_phone_number(callback_query.from_user.id)
     if phone_number == 'не указан':
         kb = types.InlineKeyboardMarkup()
-        await callback_query.message.edit_text(config.set_phone_number)
         kb.add(types.InlineKeyboardButton(text=config.main_menu, callback_data='menu'))
+        await callback_query.message.edit_text(config.set_phone_number, reply_markup=kb)
         return
     kb = types.InlineKeyboardMarkup()
     if await db.check_banned(callback_query.from_user.id):
