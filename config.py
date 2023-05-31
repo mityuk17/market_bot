@@ -1,12 +1,11 @@
-telegram_token = '6287798525:AAHGmutQYOHuhJlNsY07byvdSC4TxQwLb64'
-#telegram_token = '5972244696:AAFnydqHSJHVWcAMkij1eaE7Jqoe1d-11x0'
-admin_ids = [547380383, 365627479, 413512781]
+telegram_token = ''
+admin_ids = []
 max_title_length = 255
 max_items_per_account = 10
 max_description_length = 3000
 pictures_amount = 2
 
-group_url = 'https://t.me/Russian_excavators'
+group_url = ''
 
 hello_message = 'Главное меню'
 
@@ -94,8 +93,8 @@ unban_message = 'Вы были разблокированы.'
 
 support = 'Тех. поддержка 🛠'
 
-support_url = 'https://t.me/technicalsupport97'
+support_url = ''
 
-unban_group_url = 'https://t.me/Applicationsforunlocking'
+unban_group_url = ''
 
 set_phone_number = 'Для создания объявлений вам необходимо указать ваш номер телефона, это можно сделать по кнопке в главном меню.'
